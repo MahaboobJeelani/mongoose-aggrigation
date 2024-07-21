@@ -1,0 +1,331 @@
+// How many user are active
+
+[
+    {
+        $match: {
+            isActive: true
+        }
+    },
+    {
+        $count: 'isActive'
+    }
+]
+
+// What is the average age of all the users
+[
+    {
+        $group: {
+            _id: '$gender',
+            averageAge: {
+                $avg: "$age"
+            }
+        }
+    }
+]
+
+// list the top 5 most common favorite fruits amoung users?
+[
+    {
+        $group: {
+            _id: "$favoriteFruit",
+            // count is not present in the document it added through aggrigation
+            count: {
+                $sum: 1
+            }
+        }
+    },
+    {
+        $sort: {
+            // this count is taken from the top of the group aggrigation
+            count: -1
+        }
+    },
+    {
+        $limit: 2
+    }
+]
+
+// Find the total number of male and females
+[
+    {
+        $group: {
+            _id: "$gender",
+            count: {
+                $sum: 1
+            }
+        }
+    }
+]
+
+// Which country has the highest number of registered user?
+[
+    {
+        $group: {
+            _id: "$company.location.country",
+            userCount: {
+                $sum: 1
+            }
+        }
+    },
+    {
+        $sort: {
+            userCount: -1
+        }
+    }
+]
+
+// List all unique eyecolors present in the collection
+[
+    {
+        $group: {
+            _id: "$eyeColor"
+        }
+    }
+]
+
+// What is the average number of tags per user?
+
+[
+    {
+        $unwind: '$tags'
+    },
+    {
+        $group: {
+            _id: "$_id",
+            numberOfTags: {
+                $sum: 1
+            }
+        }
+    },
+    {
+        $group: {
+            _id: null,
+            averageNumberOfTags: { $avg: "$numberOfTags" }
+        }
+    }
+]
+
+// another way
+[
+    {
+        $addFields: {
+            numberOfTags: {
+                $size: { $ifNull: ["$tags", []] }
+            }
+        }
+    },
+    {
+        $group: {
+            _id: null,
+            averageNumberOfTags: {
+                $avg: "$numberOfTags"
+            }
+        }
+    }
+]
+
+// how many 'enim' as one of their tags
+[
+    {
+        $match: {
+            tags: 'enim'
+        }
+    },
+    {
+        $count: 'userWithEnimTags'
+    }
+]
+
+// What are the names and ages of user who are inactive and have 'velit' as a tag?
+
+[
+    {
+        $match: {
+            isActive: false,
+            tags: "velit"
+        }
+    },
+    {
+        $project: {
+            name: 1, age: 1
+        }
+    }
+]
+
+// How many user have phone Number starting with '+1 (940)'?
+
+[
+    {
+        $match: {
+            "company.phone": /^\+1 \(940\)/
+        }
+    },
+    {
+        $count: 'Special Phone Number'
+    }
+]
+
+// Who has register the most recently?
+[
+    {
+        $sort: {
+            registered: -1
+        }
+    },
+    {
+        $project: {
+            name: 1,
+            registered: 1,
+            favoriteFruit: 1
+        }
+    }
+]
+
+// Categerie users by their faverote fruit
+
+[
+    {
+        $group: {
+            _id: "$favoriteFruit",
+            user: { $push: "$name" }
+        }
+    }
+]
+
+// How many users have 'ad' as the second tag in their list of tags
+[
+    {
+        $match: {
+            "tags.1": "ad"
+        }
+    },
+    {
+        $count: 'ad Having the in tags 2 position'
+    }
+]
+
+// Find user who having both 'enim' and "id" as their tags
+[
+    {
+        $match: {
+            tags: { $all: ['enim', "id"] }
+        }
+    }
+]
+
+// List all companies located in the usa with their corressponding user count?
+
+// Connect the two document
+[
+    {
+        $lookup: {
+            from: "authors",
+            localField: "author_id",
+            foreignField: "_id",
+            as: "Authors"
+        }
+    }
+]
+
+// $out aggrigation is used to  create another document in same database.
+[
+    {
+        $match: {
+            age: 20
+        }
+    },
+    {
+        $project: {
+            _id: 0,
+            name: 1,
+            isActive: 1
+        }
+    },
+    {
+        $out: "data"
+    }
+]
+
+// $facet is Processes multiple aggregation pipelines within a single stage on the same set of input documents.
+
+
+// Data
+// {
+//   "_id": {
+//     "$oid": "667f924daebb301adf079ff5"
+//   },
+//   "index": 0,
+//   "name": "Aurelia Gonzales",
+//   "isActive": false,
+//   "registered": {
+//     "$date": "2015-02-11T04:22:39.000Z"
+//   },
+//   "age": 20,
+//   "gender": "female",
+//   "eyeColor": "green",
+//   "favoriteFruit": "banana",
+//   "company": {
+//     "title": "YURTURE",
+//     "email": "aureliagonzales@yurture.com",
+//     "phone": "+1 (940) 501-3963",
+//     "location": {
+//       "country": "USA",
+//       "address": "694 Hewes Street"
+//     }
+//   },
+//   "tags": [
+//     "enim",
+//     "id",
+//     "velit",
+//     "ad",
+//     "consequat"
+//   ]
+// }
+[
+    {
+        $facet: {
+            // Calculate the average age of users
+            averageAge: [
+                { $group: { _id: null, avgAge: { $avg: "$age" } } },
+                { $project: { _id: 0, avgAge: 1 } }
+            ],
+            // Count the number of users by gender
+            genderCount: [
+                { $group: { _id: "$gender", count: { $sum: 1 } } },
+                { $project: { _id: 0, gender: "$_id", count: 1 } }
+            ],
+            // List the top 3 favorite fruits
+            topFruits: [
+                { $group: { _id: "$favoriteFruit", count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 3 },
+                { $project: { _id: 0, favoriteFruit: "$_id", count: 1 } }
+            ],
+            // Count the number of users registered per year
+            registeredPerYear: [
+                { $group: { _id: { $year: "$registered" }, count: { $sum: 1 } } },
+                { $project: { _id: 0, year: "$_id", count: 1 } }
+            ]
+        }
+    }
+]
+
+// $addFields: Adds new fields to documents. Similar to $project, but without removing existing fields.
+
+
+// $replaceRoot: Replaces the input document with the specified document and it is applicable only for "Array" and "Object" the anotherway is "$replaceWith" but in replcaeWith thier is no newRoot.
+
+[
+    {
+        $match: {
+            company: {
+                $exists: true
+            }
+        }
+    },
+    {
+        $replaceRoot: {
+            newRoot: "$company.location"
+        }
+    }
+]
